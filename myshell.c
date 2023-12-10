@@ -30,6 +30,7 @@ void loadAliases();
 int findAlias(char *name, char **command);
 void freeAliases();
 void printAliases();
+void parseAlias(char **arguments);
 
 typedef struct
 {
@@ -59,7 +60,6 @@ int main()
     while (1)
     {
         loadAliases();
-        printAliases();
         redirecting = 0;
         clearFile = 0;
         writeToConsole();
@@ -95,25 +95,7 @@ int main()
             parseInput(input, &command, &arguments, &redirecting, &clearFile, &outputFile);
             if (strcmp(command, "alias") == 0)
             {
-                int totalLength = 1;
-                for (int i = 2; arguments[i] != NULL; ++i)
-                {
-                    totalLength += strlen(arguments[i]) + 1; // +1 for the space between arguments
-                }
-
-                char *mergedCommand = (char *)malloc(totalLength);
-                if (mergedCommand != NULL)
-                {
-                    strcpy(mergedCommand, arguments[2]);
-                    for (int i = 3; arguments[i] != NULL; ++i)
-                    {
-                        strcat(mergedCommand, " "); // Add space between arguments
-                        strcat(mergedCommand, arguments[i]);
-                    }
-                }
-                removeQuote(mergedCommand);
-                createAlias(arguments[0], mergedCommand);
-                free(mergedCommand);
+                parseAlias(arguments);
                 writeAliases();
                 continue;
                 // memory free
@@ -253,6 +235,29 @@ void parseInput(char *input, char **command, char ***arguments, int *redirecting
     }
     *arguments = (char **)realloc(*arguments, (count + 1) * sizeof(char *));
     (*arguments)[count] = NULL;
+}
+
+void parseAlias(char **arguments)
+{
+    int totalLength = 1;
+    for (int i = 2; arguments[i] != NULL; ++i)
+    {
+        totalLength += strlen(arguments[i]) + 1; // +1 for the space between arguments
+    }
+
+    char *mergedCommand = (char *)malloc(totalLength);
+    if (mergedCommand != NULL)
+    {
+        strcpy(mergedCommand, arguments[2]);
+        for (int i = 3; arguments[i] != NULL; ++i)
+        {
+            strcat(mergedCommand, " "); // Add space between arguments
+            strcat(mergedCommand, arguments[i]);
+        }
+    }
+    removeQuote(mergedCommand);
+    createAlias(arguments[0], mergedCommand);
+    free(mergedCommand);
 }
 
 int executeBuiltInCommands(char *command, char **args, char *path, int background, int redirecting, int clearFile, char *outputFile, int reRedirecting)
@@ -438,7 +443,7 @@ void writeAliases()
     {
         for (int i = 0; i < aliasCount; i++)
         {
-            fprintf(file, "%s = \"%s\"\n", aliases[i].aliasName, aliases[i].aliasCommand);
+            fprintf(file, "%s \"%s\"\n", aliases[i].aliasName, aliases[i].aliasCommand);
         }
         fclose(file);
     }
@@ -447,26 +452,23 @@ void writeAliases()
 void loadAliases()
 {
     FILE *file = fopen(ALIASES_PATH, "r");
-    // if (file != NULL)
-    // {
-    //     char *name = NULL;
-    //     char *command = NULL;
-    //     while (fscanf(file, "%[^=] = \"%[^\"]\"\n", name, command) == 2)
-    //     {
-    //         aliases = realloc(aliases, (aliasCount + 1) * sizeof(Alias));
-    //         aliases[aliasCount].aliasName = strdup(name);
-    //         aliases[aliasCount].aliasCommand = strdup(command);
-    //         aliasCount++;
-    //     }
-    //     fclose(file);
-    // }
     char *line = NULL;
     size_t len = 0;
     ssize_t read;
     while ((read = getline(&line, &len, file)) != -1)
     {
-        
+        aliases = realloc(aliases, (aliasCount + 1) * sizeof(Alias));
+        char *name = strtok(line, " ");
+        trim(name);
+        aliases[aliasCount].aliasName = strdup(name);
+        char *command = strtok(NULL, "\n");
+        trim(command);
+        removeQuote(command);
+        aliases[aliasCount].aliasCommand = strdup(command);
+        aliasCount++;
     }
+    free(line);
+    fclose(file);
 }
 
 int findAlias(char *name, char **command)

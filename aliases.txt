@@ -1,1 +1,7 @@
-ceren = "echo fistik"
+b "ls"
+b "ls"
+icardi "echo"
+b "ls"
+b "ls"
+icardi "echo KRAL"
+eray "icardi"
