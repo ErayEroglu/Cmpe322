@@ -31,6 +31,7 @@ int findAlias(char *name, char **command);
 void freeAliases();
 void printAliases();
 void parseAlias(char **arguments);
+void killZombies();
 
 typedef struct
 {
@@ -39,6 +40,8 @@ typedef struct
 } Alias;
 Alias *aliases;
 int aliasCount;
+int numberOfExecutedProcesses = 0;
+char *lastExecutedCommand = NULL;
 
 // TODO: error cases
 //  bello process count and last executed
@@ -108,7 +111,6 @@ int main()
                 free(arguments[i]);
             }
             free(arguments);
-            free(input);
         }
         // if (newAlias)
         //     writeAliases();
@@ -117,6 +119,11 @@ int main()
         {
             printf("Command is not found\n");
         }
+        else
+            lastExecutedCommand = strdup(input);
+
+        free(input);
+        killZombies();
         newAlias = 0;
     }
     return 0;
@@ -208,9 +215,27 @@ void reverse(char *str, ssize_t num)
     }
 }
 
+void killZombies()
+{
+    pid_t terminatedPId;
+    int status;
+    // do
+    // {
+    //     terminatedPId = waitpid(-1, &status, WNOHANG);
+    //     numberOfExecutedProcesses--;
+    // } while (terminatedPId > 0);
+
+    while (terminatedPId =waitpid(-1, &status, WNOHANG) > 0)
+    {
+        numberOfExecutedProcesses--;
+    }
+    
+}
+
 void parseInput(char *input, char **command, char ***arguments, int *redirecting, int *clearFile, char **outputFile)
 {
-    char *token = strtok(input, " ");
+    char *copiedInput = strdup(input);
+    char *token = strtok(copiedInput, " ");
     *command = strdup(token); // first token +must be command
     int count = 0;
     *arguments = (char **)malloc(sizeof(char *)); // rest should be arguments
@@ -235,6 +260,7 @@ void parseInput(char *input, char **command, char ***arguments, int *redirecting
     }
     *arguments = (char **)realloc(*arguments, (count + 1) * sizeof(char *));
     (*arguments)[count] = NULL;
+    free(copiedInput);
 }
 
 void parseAlias(char **arguments)
@@ -278,6 +304,7 @@ int executeBuiltInCommands(char *command, char **args, char *path, int backgroun
             int rfd[2];
             pipe(rfd);
             pid_t pid = fork();
+            numberOfExecutedProcesses++;
             if (pid < 0) // error case
             {
                 perror("Forking error");
@@ -319,21 +346,27 @@ int executeBuiltInCommands(char *command, char **args, char *path, int backgroun
                 if (background)
                 {
                     // If running in the background, redirect standard input, output, and error to /dev/null
-                    freopen("/dev/null", "r", stdin);
-                    freopen("/dev/null", "w", stdout);
-                    freopen("/dev/null", "w", stderr);
+                    // freopen("/dev/null", "r", stdin);
+                    // freopen("/dev/null", "w", stdout);
+                    // freopen("/dev/null", "w", stderr);
+                    // if (setpgid(0, 0) < 0)
+                    // {
+                    //     perror("setpgid error");
+                    //     exit(EXIT_FAILURE);
+                    // }
+                    setpgid(0, 0);
                 }
                 if (strcmp(command, "bello") == 0)
                 {
                     isBello = 1;
                     bello();
                     free(copy); // Free the memory allocated by strdup
-                    exit(0);   // Indicate that the command was executed
+                    exit(0);    // Indicate that the command was executed
                 }
                 char *allArgs[2 + MAX_INPUT_LENGTH];
                 allArgs[0] = command;
                 int i;
-                for (i = 0; args[i] != NULL; ++i)
+                for (i = 0; args[i] != NULL && strcmp(args[i], "&") != 0; ++i)
                 {
                     allArgs[i + 1] = args[i];
                 }
@@ -345,7 +378,11 @@ int executeBuiltInCommands(char *command, char **args, char *path, int backgroun
             else // parent process, wait for child
             {
                 if (!background)
-                    waitpid(pid, NULL, 0);
+                    {
+                         int res = waitpid(pid, NULL, 0);
+                         if (res > 0)
+                            numberOfExecutedProcesses--;
+                    }
 
                 if (reRedirecting)
                 {
@@ -370,7 +407,7 @@ int executeBuiltInCommands(char *command, char **args, char *path, int backgroun
                 return 1;
             }
         }
-        if(isBello)
+        if (isBello)
             return 1;
         pathDirectories = strtok(NULL, ":"); // look for next directory
     }
@@ -500,21 +537,32 @@ void bello()
 {
     struct passwd *pw = getpwuid(getuid()); // username
     char host[MAX_INPUT_LENGTH];
-    gethostname(host, sizeof(host)); // hostname
-    // TODO: last command
+    gethostname(host, sizeof(host));   // hostname
     char *tty = ttyname(STDIN_FILENO); // tty
     char *shellName = getenv("SHELL"); // shell
     char *home = pw->pw_dir;           // home
     time_t t;
     time(&t); // time
-    int numProcesses = system("ps aux | awk 'NR > 1' | wc -l");
+    // int numProcesses = system("ps aux | awk 'NR > 1' | wc -l");
     printf("1. Username: %s\n", pw->pw_name);
     printf("2. Hostname: %s\n", host);
-    // printf("3. Last Executed Command: %s\n", lastCommandResult);
+    printf("3. Last Executed Command: %s\n", lastExecutedCommand);
     printf("4. TTY: %s\n", tty);
     printf("5. Current Shell Name: %s\n", shellName);
     printf("6. Home Location: %s\n", home);
     printf("7. Current Time and Date: %s", ctime(&t));
+    printf("8. Current number of processes being executed: %d\n", numberOfExecutedProcesses);
+    // FILE *psOutput = popen("ps aux | grep 'myshell.o' | wc -l", "r");
+    // if (psOutput != NULL)
+    // {
+    //     char buffer[128];
+    //     if (fgets(buffer, sizeof(buffer), psOutput) != NULL)
+    //     {
+    //         int numProcesses = atoi(buffer);
+    //         printf("8. Current number of processes being executed: %d\n", numProcesses);
+    //     }
+    //     pclose(psOutput);
+    // }
     // TODO: buraya dikkat sikinti cikarabilir
-    printf("8. Current number of processes being executed: %d\n", numProcesses);
+    // printf("8. Current number of processes being executed: %d\n", numProcesses);
 }
