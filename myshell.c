@@ -38,10 +38,9 @@ typedef struct
     char *aliasCommand;
 } Alias;
 Alias *aliases;
-int aliasCount = 0;
+int aliasCount;
 
 // TODO: error cases
-//  bello is not recognized while redirecting
 //  bello process count and last executed
 int main()
 {
@@ -59,6 +58,7 @@ int main()
     int newAlias = 0;
     while (1)
     {
+        aliasCount = 0;
         loadAliases();
         redirecting = 0;
         clearFile = 0;
@@ -262,17 +262,18 @@ void parseAlias(char **arguments)
 
 int executeBuiltInCommands(char *command, char **args, char *path, int background, int redirecting, int clearFile, char *outputFile, int reRedirecting)
 {
+    int isBello = 0;
     int isAlias = findAlias(command, &command);
     if (isAlias)
         parseInput(command, &command, &args, &redirecting, &clearFile, &outputFile);
-    // printf("%s\n",command);
+
     char *copy = strdup(path);
     char *pathDirectories = strtok(copy, ":");
     while (pathDirectories != NULL)
     {
         char currentPath[MAX_INPUT_LENGTH * 4];
         snprintf(currentPath, MAX_INPUT_LENGTH, "%s/%s", pathDirectories, command);
-        if (access(currentPath, X_OK) == 0)
+        if (access(currentPath, X_OK) == 0 || strcmp(command, "bello") == 0)
         {
             int rfd[2];
             pipe(rfd);
@@ -322,6 +323,13 @@ int executeBuiltInCommands(char *command, char **args, char *path, int backgroun
                     freopen("/dev/null", "w", stdout);
                     freopen("/dev/null", "w", stderr);
                 }
+                if (strcmp(command, "bello") == 0)
+                {
+                    isBello = 1;
+                    bello();
+                    free(copy); // Free the memory allocated by strdup
+                    exit(0);   // Indicate that the command was executed
+                }
                 char *allArgs[2 + MAX_INPUT_LENGTH];
                 allArgs[0] = command;
                 int i;
@@ -362,6 +370,8 @@ int executeBuiltInCommands(char *command, char **args, char *path, int backgroun
                 return 1;
             }
         }
+        if(isBello)
+            return 1;
         pathDirectories = strtok(NULL, ":"); // look for next directory
     }
     free(copy);
@@ -452,6 +462,8 @@ void writeAliases()
 void loadAliases()
 {
     FILE *file = fopen(ALIASES_PATH, "r");
+    if (file == NULL)
+        return;
     char *line = NULL;
     size_t len = 0;
     ssize_t read;
