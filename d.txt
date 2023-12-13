@@ -1,7 +1,0 @@
-aliases.txt
-a.txt
-b.txt
-CMPE322_Project1_2023.pdf
-d.txt
-myshell.c
-myshell.o

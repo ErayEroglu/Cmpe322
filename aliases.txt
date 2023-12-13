@@ -1,3 +1,0 @@
-ceren "echo fistik"
-eray "echo i am batman"
-icardi "echo KRAL"

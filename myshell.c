@@ -33,7 +33,7 @@ void printAliases();
 void parseAlias(char **arguments);
 void killZombies();
 
-typedef struct
+typedef struct // struct for aliases. Keeps alias name and command
 {
     char *aliasName;
     char *aliasCommand;
@@ -45,8 +45,6 @@ int aliasCount;
 int numberOfExecutedProcesses = 0;
 char *lastExecutedCommand = NULL;
 
-// TODO: error cases
-//  bello process count and last executed
 int main()
 {
     char *input = NULL;
@@ -60,11 +58,11 @@ int main()
     int redirecting;
     int clearFile;
     int reRedirecting;
-    int newAlias = 0;
+    aliasCount = 0;
+    loadAliases();
     while (1)
     {
-        aliasCount = 0;
-        loadAliases();
+        killZombies();
         redirecting = 0;
         clearFile = 0;
         writeToConsole();
@@ -72,10 +70,11 @@ int main()
         trim(input);
 
         if (input[strlen(input) - 1] == '&')
-            {
-                background = 1;
-                input[strlen(input) - 1] = '\0';
-            }
+        {
+            background = 1;
+            input[strlen(input) - 1] = '\0';
+            trim(input);
+        }
         else
             background = 0;
 
@@ -102,10 +101,19 @@ int main()
             parseInput(input, &command, &arguments, &redirecting, &clearFile, &outputFile);
             if (strcmp(command, "alias") == 0)
             {
+                lastExecutedCommand = strdup(input);
                 parseAlias(arguments);
+                free(input);
+                free(command); // memory cleaning
+                for (int i = 0; arguments[i] != NULL; ++i)
+                {
+                    free(arguments[i]);
+                }
+                free(arguments);
                 continue;
                 // memory free
             }
+
             // parse the input into tokens and classify them
             validCommand = executeBuiltInCommands(command, arguments, path, background, redirecting, clearFile, outputFile, 0);
             free(command); // memory cleaning
@@ -115,8 +123,6 @@ int main()
             }
             free(arguments);
         }
-        // if (newAlias)
-        //     writeAliases();
 
         if (!validCommand)
         {
@@ -126,13 +132,11 @@ int main()
             lastExecutedCommand = strdup(input);
 
         free(input);
-        killZombies();
-        newAlias = 0;
     }
     return 0;
 }
 
-void writeToConsole()
+void writeToConsole() // function to  write necessary info to console
 {
     struct passwd *pw = getpwuid(getuid());
     char host[MAX_INPUT_LENGTH];
@@ -142,23 +146,12 @@ void writeToConsole()
     char *home = pw->pw_dir;
     int homeLength = strlen(home);
     if (strncmp(cwd, home, homeLength) == 0)
-    {
         printf("%s@%s ~%s --- ", pw->pw_name, host, cwd + homeLength);
-    }
     else
-    {
         printf("%s@%s %s --- ", pw->pw_name, host, cwd);
-    }
-}
-void printAliases()
-{
-    for (int i = 0; i < aliasCount; i++)
-    {
-        printf("Alias: %s = \"%s\"\n", aliases[i].aliasName, aliases[i].aliasCommand);
-    }
 }
 
-char *readInput()
+char *readInput() // reads input from terminal
 {
     char line[MAX_INPUT_LENGTH];
     char *input = (char *)malloc(MAX_INPUT_LENGTH);
@@ -181,7 +174,7 @@ char *readInput()
     return input;
 }
 
-void trim(char *str)
+void trim(char *str) // removes leading and trailing spaces
 {
     while (isspace(*str))
     {
@@ -195,20 +188,20 @@ void trim(char *str)
     *(end + 1) = '\0';
 }
 
-void removeQuote(char *str)
+void removeQuote(char *str) // removes quotes for aliasing
 {
     int len = strlen(str);
     memmove(str, str + 1, len - 2);
     str[len - 2] = '\0';
 }
 
-void divideString(const char *input, int index, char **firstPart, char **secondPart)
+void divideString(const char *input, int index, char **firstPart, char **secondPart) // helper function for aliasing
 {
     *firstPart = strndup(input, index - 2);
     *secondPart = strdup(input + index - 2);
 }
 
-void reverse(char *str, ssize_t num)
+void reverse(char *str, ssize_t num) // helper function for >>>
 {
     for (int i = 0; i < num / 2; i++)
     {
@@ -218,22 +211,21 @@ void reverse(char *str, ssize_t num)
     }
 }
 
-void killZombies()
+void killZombies() // kills finished background processes
 {
     pid_t terminatedPId;
     int status;
-    while (terminatedPId =waitpid(-1, &status, WNOHANG) > 0)
+    while (terminatedPId = waitpid(-1, &status, WNOHANG) > 0)
     {
         numberOfExecutedProcesses--;
     }
-    
 }
 
 void parseInput(char *input, char **command, char ***arguments, int *redirecting, int *clearFile, char **outputFile)
-{
+{ // input parser. Sets necessary values to parameters
     char *copiedInput = strdup(input);
     char *token = strtok(copiedInput, " ");
-    *command = strdup(token); // first token +must be command
+    *command = strdup(token); // first token must be command
     int count = 0;
     *arguments = (char **)malloc(sizeof(char *)); // rest should be arguments
     while ((token = strtok(NULL, " ")) != NULL)
@@ -252,7 +244,7 @@ void parseInput(char *input, char **command, char ***arguments, int *redirecting
             *outputFile = strdup(token);
             *redirecting = 1;
             *clearFile = 0;
-            break;      
+            break;
         }
         *arguments = (char **)realloc(*arguments, (count + 1) * sizeof(char *));
         (*arguments)[count++] = strdup(token);
@@ -262,7 +254,7 @@ void parseInput(char *input, char **command, char ***arguments, int *redirecting
     free(copiedInput);
 }
 
-void parseAlias(char **arguments)
+void parseAlias(char **arguments) // specific parser for aliases since they have a unique form
 {
     int totalLength = 1;
     for (int i = 2; arguments[i] != NULL; ++i)
@@ -286,22 +278,23 @@ void parseAlias(char **arguments)
 }
 
 int executeBuiltInCommands(char *command, char **args, char *path, int background, int redirecting, int clearFile, char *outputFile, int reRedirecting)
-{
+{ // executes commands. fork - exec logic is implemented here
+    // returns 1 for successfull execution, otherwise returns 0
     int isBello = 0;
-    int isAlias = findAlias(command, &command);
-    if (isAlias)
+    int isAlias = findAlias(command, &command); // at first, check if the command is alias or not
+    if (isAlias)                                // if it is an alias, look for what it stands for then parse the command again
         parseInput(command, &command, &args, &redirecting, &clearFile, &outputFile);
 
     char *copy = strdup(path);
     char *pathDirectories = strtok(copy, ":");
-    while (pathDirectories != NULL)
+    while (pathDirectories != NULL) // look for builtin commands in the path
     {
-        char currentPath[MAX_INPUT_LENGTH * 4];
+        char currentPath[MAX_INPUT_LENGTH * 6];
         snprintf(currentPath, MAX_INPUT_LENGTH, "%s/%s", pathDirectories, command);
         if (access(currentPath, X_OK) == 0 || strcmp(command, "bello") == 0)
-        {
+        { // if the path is accessible or the command is bello, start execution
             int rfd[2];
-            pipe(rfd);
+            pipe(rfd); // message passing will be used for >>>
             pid_t pid = fork();
             numberOfExecutedProcesses++;
             if (pid < 0) // error case
@@ -310,7 +303,7 @@ int executeBuiltInCommands(char *command, char **args, char *path, int backgroun
             }
             else if (pid == 0) // child process case
             {
-                if (redirecting)
+                if (redirecting) // > or >> cases
                 {
                     int fd;
                     if (!clearFile)
@@ -335,32 +328,22 @@ int executeBuiltInCommands(char *command, char **args, char *path, int backgroun
                     // Close the original file descriptor
                     close(fd);
                 }
-                if (reRedirecting)
+                if (reRedirecting) // >>> cases
                 {
                     close(rfd[0]);
                     dup2(rfd[1], STDOUT_FILENO);
                     close(rfd[1]);
                 }
 
-                if (background)
-                {
-                    // If running in the background, redirect standard input, output, and error to /dev/null
-                    // freopen("/dev/null", "r", stdin);
-                    // freopen("/dev/null", "w", stdout);
-                    // freopen("/dev/null", "w", stderr);
-                    // if (setpgid(0, 0) < 0)
-                    // {
-                    //     perror("setpgid error");
-                    //     exit(EXIT_FAILURE);
-                    // }
+                if (background) // & cases
                     setpgid(0, 0);
-                }
-                if (strcmp(command, "bello") == 0)
+
+                if (strcmp(command, "bello") == 0) // bello cases
                 {
                     isBello = 1;
                     bello();
-                    free(copy); // Free the memory allocated by strdup
-                    exit(0);    // Indicate that the command was executed
+                    free(copy); // free the memory allocated by strdup
+                    exit(0);    // indicates that the command was executed
                 }
                 char *allArgs[2 + MAX_INPUT_LENGTH];
                 allArgs[0] = command;
@@ -376,14 +359,14 @@ int executeBuiltInCommands(char *command, char **args, char *path, int backgroun
             }
             else // parent process, wait for child
             {
-                if (!background)
-                    {
-                         int res = waitpid(pid, NULL, 0);
-                         if (res > 0)
-                            numberOfExecutedProcesses--;
-                    }
+                if (!background) // if background, do not wait
+                {
+                    int res = waitpid(pid, NULL, 0);
+                    if (res > 0)
+                        numberOfExecutedProcesses--;
+                }
 
-                if (reRedirecting)
+                if (reRedirecting) // reverse the output and write
                 {
                     close(rfd[1]);
                     char str[MAX_INPUT_LENGTH * 16];
@@ -415,7 +398,7 @@ int executeBuiltInCommands(char *command, char **args, char *path, int backgroun
 }
 
 int reRedirect(char *input, char *command, char **args, char *path, int background, int redirecting, int clearFile, char *outputFile)
-{
+{                                      // checks for >>> cases and starts execution
     char *copyOfInput = strdup(input); // Make a copy of the input
     char *firstPart = NULL;
     char *rest = NULL;
@@ -453,18 +436,7 @@ int reRedirect(char *input, char *command, char **args, char *path, int backgrou
 }
 
 void createAlias(char *aliasName, char *aliasCommand)
-{
-    for (int i = 0; i < aliasCount; i++)
-    {
-        if (strcmp(aliases[i].aliasName, aliasName) == 0)
-        {
-            free(aliases[i].aliasCommand); // Free existing memory
-            aliases[i].aliasCommand = strdup(aliasCommand);
-            return;
-        }
-    }
-
-    // Add a new alias to the dictionary
+{ // creates new aliases
     aliases = realloc(aliases, (aliasCount + 1) * sizeof(Alias));
     aliases[aliasCount].aliasName = strdup(aliasName);
     aliases[aliasCount].aliasCommand = strdup(aliasCommand);
@@ -472,7 +444,7 @@ void createAlias(char *aliasName, char *aliasCommand)
 }
 
 void freeAliases()
-{
+{ // helper function to prevent memory leak
     for (int i = 0; i < aliasCount; i++)
     {
         free(aliases[i].aliasName);
@@ -482,7 +454,7 @@ void freeAliases()
 }
 
 void writeAliases()
-{
+{ // file writer to keep aliases
     FILE *file = fopen(ALIASES_PATH, "w");
     if (file != NULL)
     {
@@ -495,7 +467,7 @@ void writeAliases()
 }
 
 void loadAliases()
-{
+{ // reads file and loads aliases
     FILE *file = fopen(ALIASES_PATH, "r");
     if (file == NULL)
         return;
@@ -519,7 +491,8 @@ void loadAliases()
 }
 
 int findAlias(char *name, char **command)
-{
+{ // checks if the current command is an alias
+    // returns 1 if it is, otherwise returns 0
     for (int i = 0; i < aliasCount; i++)
     {
         if (strcmp(aliases[i].aliasName, name) == 0)
@@ -541,7 +514,6 @@ void bello()
     char *home = pw->pw_dir;           // home
     time_t t;
     time(&t); // time
-    // int numProcesses = system("ps aux | awk 'NR > 1' | wc -l");
     printf("1. Username: %s\n", pw->pw_name);
     printf("2. Hostname: %s\n", host);
     printf("3. Last Executed Command: %s\n", lastExecutedCommand);
@@ -550,17 +522,4 @@ void bello()
     printf("6. Home Location: %s\n", home);
     printf("7. Current Time and Date: %s", ctime(&t));
     printf("8. Current number of processes being executed: %d\n", numberOfExecutedProcesses);
-    // FILE *psOutput = popen("ps aux | grep 'myshell.o' | wc -l", "r");
-    // if (psOutput != NULL)
-    // {
-    //     char buffer[128];
-    //     if (fgets(buffer, sizeof(buffer), psOutput) != NULL)
-    //     {
-    //         int numProcesses = atoi(buffer);
-    //         printf("8. Current number of processes being executed: %d\n", numProcesses);
-    //     }
-    //     pclose(psOutput);
-    // }
-    // TODO: buraya dikkat sikinti cikarabilir
-    // printf("8. Current number of processes being executed: %d\n", numProcesses);
 }
