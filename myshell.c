@@ -38,6 +38,8 @@ typedef struct
     char *aliasName;
     char *aliasCommand;
 } Alias;
+
+// global variables
 Alias *aliases;
 int aliasCount;
 int numberOfExecutedProcesses = 0;
@@ -70,7 +72,10 @@ int main()
         trim(input);
 
         if (input[strlen(input) - 1] == '&')
-            background = 1;
+            {
+                background = 1;
+                input[strlen(input) - 1] = '\0';
+            }
         else
             background = 0;
 
@@ -81,7 +86,7 @@ int main()
         }
         if (strcmp(input, "exit") == 0) // exit condition
         {
-            printf("Exiting shell\n");
+            writeAliases();
             free(input);
             break;
         }
@@ -91,7 +96,6 @@ int main()
             free(input);
             continue;
         }
-
         reRedirecting = reRedirect(input, command, arguments, path, background, redirecting, clearFile, outputFile);
         if (!reRedirecting)
         {
@@ -99,7 +103,6 @@ int main()
             if (strcmp(command, "alias") == 0)
             {
                 parseAlias(arguments);
-                writeAliases();
                 continue;
                 // memory free
             }
@@ -219,12 +222,6 @@ void killZombies()
 {
     pid_t terminatedPId;
     int status;
-    // do
-    // {
-    //     terminatedPId = waitpid(-1, &status, WNOHANG);
-    //     numberOfExecutedProcesses--;
-    // } while (terminatedPId > 0);
-
     while (terminatedPId =waitpid(-1, &status, WNOHANG) > 0)
     {
         numberOfExecutedProcesses--;
@@ -243,17 +240,19 @@ void parseInput(char *input, char **command, char ***arguments, int *redirecting
     {
         if (strcmp(token, ">") == 0)
         {
-            *outputFile = strtok(NULL, " ");
+            token = strtok(NULL, " ");
+            *outputFile = strdup(token);
             *redirecting = 1;
             *clearFile = 1;
             break;
         }
         else if (strcmp(token, ">>") == 0)
         {
-            *outputFile = strtok(NULL, " ");
+            token = strtok(NULL, " ");
+            *outputFile = strdup(token);
             *redirecting = 1;
             *clearFile = 0;
-            break;
+            break;      
         }
         *arguments = (char **)realloc(*arguments, (count + 1) * sizeof(char *));
         (*arguments)[count++] = strdup(token);
@@ -440,7 +439,6 @@ int reRedirect(char *input, char *command, char **args, char *path, int backgrou
                 free(firstPart); // Free the memory allocated by divideString
                 free(copyOfInput);
                 free(command);
-                free(input);
                 return 1;
             }
             else

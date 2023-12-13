@@ -1,0 +1,10 @@
+
+o.llehsym
+c.llehsym
+fdp.3202_1tcejorP_223EPMC
+txt.a
+txt.sesaila
+sp 00:00:00    0/stp 56151  
+o.llehsym 00:00:00    0/stp 54151  
+hsab 00:00:00    0/stp 45131  
+DMC EMIT          YTT DIP    
