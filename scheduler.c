@@ -1,12 +1,20 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdbool.h>
 
 typedef struct Process {
     int priority;
     int arrivalTime;
+    int admissionTime;
+    int exitTime;
+    int totalExecutionTime;
     int type;  // 0 for silver, 1 for gold and 2 for plat
     int* instructionInfo;
+    int lastExecutedLine;
+    int quantumCount;
+    int executionTime;
+    bool isPushed;
 } Process;
 
 typedef struct Node {
@@ -20,19 +28,23 @@ void printIntArray(int arr[], int size);
 void readProcessInstructions(char *filename, int index);
 void readProcessFiles();
 void readDefinitionFile(char *filename);
-int peek();
+int peek(Node* head);
 Node* createNode(int id, int priority);
 Node* pop(Node** head);
 Node* push(Node **head,int id, int priority);
 int isEmpty(Node** head);
 int compareTo(Node* old, Node* new);
 void cleanup();
-void addToQueue(int time);
+void addToQueue(int time,Node** head);
 int findClosestArrivalTime(int time);
+float* calculateTimes();
+void printQueue(Node* head);
 
 // global variables
-Node* head = NULL;
 int const INSTRUCTION_NUMBER = 21;
+int contextSwitch = 10;
+int quantums[3] = {80,120,120};
+int typeConversions[2] = {3,5};
 int instructions[21];
 Process processes[10];
 int* activeProcesses;
@@ -40,35 +52,120 @@ int processNumber = 0;
 
 int main() {
     int time = 0;
+    int id;
+    int operationTime;
+    int instructionLine;
+    int instructionId;
+    int oldHeadId;
+    int exitedProcesses = 0;
+    bool isTimeQuantumExceeded;
+    bool exitInstruction;
+    Node* head = NULL;
+
     readInstructions("instructions.txt");
     readProcessFiles();
-    readDefinitionFile("definition.txt");
-    
+    char* input = "inputs/def2.txt";
+    readDefinitionFile(input);
+
     while (1)
     {
-        addToQueue(time);
-        printf("%d",head->processID);
-        int nextArrival = findClosestArrivalTime(time);
+        //printQueue(head);
+        if (time > 0 && !isEmpty(&head)) {
+            if (processes[id].executionTime > quantums[processes[id].type]) {
+                isTimeQuantumExceeded = true;
+                Node *oldHead = pop(&head);
+                int poppedId = oldHead->processID;
+                if (!exitInstruction) { 
+                    processes[poppedId].arrivalTime = time;
+                    processes[poppedId].isPushed = false;
+                    push(&head,poppedId,processes[poppedId].priority);
+                } else {
+                    exitedProcesses++;
+                    processes[poppedId].arrivalTime = -1;
+                    processes[poppedId].exitTime = time;
+                }
+                if (exitedProcesses >= processNumber)
+                    break;
+                if (head->processID != poppedId && !isEmpty(&head)) {
+                    time += 10;  // context switch
+                    processes[oldHeadId].executionTime = 0;
+                }
+                exitInstruction = false;
+            }
+        }
+        
+        if (!isEmpty(&head)) {
+            oldHeadId = head->processID;
+        }
+        
+        addToQueue(time,&head); // add processes to ready queue if their time has come
+        
+        if (time == 0) time += 10;
+        
+        if (isEmpty(&head)) {  // check if cpu is idle
+            int addition = findClosestArrivalTime(time);
+            if (addition != __INT_MAX__)
+                time += addition;
+        }
+        if (head->processID != oldHeadId && time > 10) {
+            time += 10;  // context switch
+            processes[oldHeadId].executionTime = 0;
+        }
+
+        if(!isEmpty(&head))
+            printf("time : %d current process : P%d instr : %d type : %d \n",time, head->processID + 1,processes[head->processID].lastExecutedLine, processes[head->processID].type);
+        
+        id = head->processID;
+        instructionLine = processes[id].lastExecutedLine;
+        instructionId = processes[id].instructionInfo[instructionLine];
+        operationTime = instructions[instructionId - 1];
+        processes[id].executionTime += operationTime;
+        processes[id].totalExecutionTime += operationTime;
+        processes[id].lastExecutedLine++;
+        processes[id].quantumCount++;
+        
+        // type conversion
+        if (processes[id].quantumCount > typeConversions[processes[id].type] && processes[id].type != 2) {
+            processes[id].type++;
+        }
+        
+        time += operationTime;  // advance time
+        
+        if (instructionId == 21)
+            exitInstruction = true;
     }
-    
+
+    float* result = calculateTimes();
+    printf("Waiting time : %f\n",result[1]);
+    printf("Turnaround time : %f\n",result[0]);
     return 0;
 }
 
-int peek() {
+int peek(Node* head) {
     return head->processID;
+}
+
+void printQueue(Node* head) {
+    printf("Queue: ");
+    Node* current = head;
+    while (current != NULL) {
+        printf("%d ", current->processID);
+        current = current->next;
+    }
+    printf("\n");
 }
 
 Node* createNode(int id, int priority) {
     Node* temp = (Node*) malloc(sizeof(Node));
     temp->processID = id;
     temp->priority = priority;
-    temp->next =NULL;
+    temp->next = NULL;
+    return temp;
 }
 
 Node* pop(Node** head) {
     Node* temp = *head;
     (*head) = (*head)->next;
-    free(temp);
     return temp;
 }
 
@@ -76,9 +173,9 @@ Node* push(Node **head,int id, int priority) {
     Node* temp = createNode(id,priority);
     if (isEmpty(head)) {
         (*head) = temp;
+        processes[id].isPushed = true;
         return temp;
     }
-
     Node* start = (*head);
     if (compareTo(start,temp) < 0) {
         temp->next = *head;
@@ -90,6 +187,7 @@ Node* push(Node **head,int id, int priority) {
         temp->next = start->next;
         start->next = temp;
     }
+    processes[id].isPushed = true;
     return *head;
 }
 
@@ -179,6 +277,10 @@ void readDefinitionFile(char *filename) {
         processNumber++;
         processes[index].priority = priority;
         processes[index].arrivalTime = arrivalTime;
+        processes[index].lastExecutedLine = 0;
+        processes[index].quantumCount = 0;
+        processes[index].isPushed = false;
+        processes[index].admissionTime = arrivalTime;
         
         if (strcmp(type, "SILVER") == 0) {
             processes[index].type = 0;
@@ -204,15 +306,17 @@ void cleanActiveProcesses() {
     for (int i = 0; i < processNumber; i++)
     {
         free(activeProcesses);
+        activeProcesses = NULL;
     }
 }
 
-void addToQueue(int time) {
+void addToQueue(int time,Node** head) {
     for (int i = 0; i < processNumber; i++)
     {
         int index = activeProcesses[i];
-        if (time >= processes[index].arrivalTime)
-            push(&head,index,processes[index].priority);
+        if (time >= processes[index].arrivalTime  && processes[index].arrivalTime >= 0 && !processes[index].isPushed) {
+            push(head,index,processes[index].priority);
+        }
     }
 }
 
@@ -221,8 +325,26 @@ int findClosestArrivalTime(int time) {
     for (int i = 0; i < processNumber; i++)
     {
         int current = processes[activeProcesses[i]].arrivalTime;
-        if (time < current && current < time)
+        if (time < current && current < result)
             result = current;
     }
+    return result;
+}
+
+float* calculateTimes() {
+    float* result = (float *) malloc(sizeof(float) * 2);
+    int turnaround = 0;
+    int temp = 0;
+    int waiting = 0;
+    int index;
+    for (int i = 0; i < processNumber; i++)
+    {
+        index = activeProcesses[i];
+        temp = processes[index].exitTime - processes[index].admissionTime;
+        turnaround += temp;
+        waiting += temp - processes[index].totalExecutionTime;
+    }
+    result[0] = turnaround / processNumber;
+    result[1] = waiting / processNumber;
     return result;
 }
