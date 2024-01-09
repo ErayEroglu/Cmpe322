@@ -64,14 +64,14 @@ int main() {
 
     readInstructions("instructions.txt");
     readProcessFiles();
-    char* input = "inputs/def2.txt";
+    char* input = "inputs/def5.txt";
     readDefinitionFile(input);
 
     while (1)
     {
         //printQueue(head);
         if (time > 0 && !isEmpty(&head)) {
-            if (processes[id].executionTime > quantums[processes[id].type]) {
+            if (processes[id].executionTime > quantums[processes[id].type] && (processes[id].type < 2 || exitInstruction)) {
                 isTimeQuantumExceeded = true;
                 Node *oldHead = pop(&head);
                 int poppedId = oldHead->processID;
@@ -113,7 +113,7 @@ int main() {
         }
 
         if(!isEmpty(&head))
-            printf("time : %d current process : P%d instr : %d type : %d \n",time, head->processID + 1,processes[head->processID].lastExecutedLine, processes[head->processID].type);
+            printf("%d P%d instr : %d type : %d \n",time, head->processID + 1,processes[head->processID].lastExecutedLine, processes[head->processID].type);
         
         id = head->processID;
         instructionLine = processes[id].lastExecutedLine;
@@ -195,8 +195,12 @@ int compareTo(Node* old, Node* new) {
     Process oldProcess = processes[old->processID];
     Process newProcess = processes[new->processID];
 
-    if (newProcess.type == 2 && oldProcess.type != 2)
+    if (oldProcess.type == 2)
+        return 1;
+
+    if (newProcess.type == 2)
         return -1;
+
     else if ((newProcess.type != 2 && oldProcess.type != 2) || (newProcess.type == 2 && oldProcess.type == 2)) {
         int priorityDifference = newProcess.priority - oldProcess.priority;
         if (priorityDifference != 0)
@@ -333,9 +337,9 @@ int findClosestArrivalTime(int time) {
 
 float* calculateTimes() {
     float* result = (float *) malloc(sizeof(float) * 2);
-    int turnaround = 0;
-    int temp = 0;
-    int waiting = 0;
+    float turnaround = 0.0;
+    float temp = 0.0;
+    float waiting = 0.0;
     int index;
     for (int i = 0; i < processNumber; i++)
     {
