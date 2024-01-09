@@ -1,5 +1,0 @@
-instr14
-instr4
-instr3
-instr1
-exit

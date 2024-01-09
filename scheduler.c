@@ -65,9 +65,8 @@ int main() {
 
     readInstructions("instructions.txt");
     readProcessFiles();
-    char* input = "inputs/def1.txt";
+    char* input = "definition.txt";
     readDefinitionFile(input);
-
     while (1)
     {
         if (time > 0 && !isEmpty(&head)) {
@@ -99,11 +98,6 @@ int main() {
 
                 if (exitedProcesses >= processNumber)
                     break;
-                
-                // if (!isEmpty(&head) && head->processID != poppedId) 
-                //     isContexSwitched = true;
-                //     processes[poppedId].executionTime = 0;
-                // }
                 exitInstruction = false;
             }
         }
@@ -111,8 +105,7 @@ int main() {
         if (!isEmpty(&head)) {
             oldHeadId = head->processID;
         }
-        // printf("before ");
-        // printQueue(head);
+
         addToQueue(time,&head); // add processes to ready queue if their time has come
         
         if (!isEmpty(&head) && head->processID != currentProcessId) {
@@ -128,12 +121,6 @@ int main() {
                 continue;}
         }
         
-        // if (head->processID != oldHeadId && time > 10 && !isContexSwitched) {
-        //     time += 10;  // context switch
-        //     processes[oldHeadId].executionTime = 0;
-        //     isContexSwitched = false;
-        // }
-        
         id = head->processID;
         instructionLine = processes[id].lastExecutedLine;
         instructionId = processes[id].instructionInfo[instructionLine];
@@ -142,10 +129,10 @@ int main() {
         processes[id].totalExecutionTime += operationTime;
         processes[id].lastExecutedLine++;
 
-        if(!isEmpty(&head))
-            printf("%d P%d instr%d %d \n",time, head->processID + 1,instructionId, processes[head->processID].type);
+        // if(!isEmpty(&head))
+        //     printf("%d P%d instr%d %d \n",time, head->processID + 1,instructionId, processes[head->processID].type);
         
-        printQueue(head);
+        //printQueue(head);
         time += operationTime;  // advance time
         
         if (instructionId == 21)
@@ -153,8 +140,10 @@ int main() {
     }
 
     float* result = calculateTimes();
-    printf("Waiting time : %f\n",result[1]);
-    printf("Turnaround time : %f\n",result[0]);
+    // printf("%.1f\n",result[1]);
+    // printf("%.1f \n",result[0]);
+    printf("%f\n",result[1]);
+    printf("%f \n",result[0]);
     return 0;
 }
 

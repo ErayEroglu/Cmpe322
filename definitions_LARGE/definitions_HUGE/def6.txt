@@ -1,2 +1,0 @@
-P1 1 0 GOLD
-P5 1 0 GOLD
