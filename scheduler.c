@@ -24,7 +24,6 @@ typedef struct Node {
 } Node;
 
 void readInstructions(char *filename);
-void printIntArray(int arr[], int size);
 void readProcessInstructions(char *filename, int index);
 void readProcessFiles();
 void readDefinitionFile(char *filename);
@@ -58,23 +57,36 @@ int main() {
     int instructionId;
     int oldHeadId;
     int exitedProcesses = 0;
+    int currentProcessId;
     bool isTimeQuantumExceeded;
-    bool exitInstruction;
+    bool exitInstruction = false;
+    bool isContexSwitched = false;
     Node* head = NULL;
 
     readInstructions("instructions.txt");
     readProcessFiles();
-    char* input = "inputs/def5.txt";
+    char* input = "inputs/def11.txt";
     readDefinitionFile(input);
 
     while (1)
     {
-        //printQueue(head);
         if (time > 0 && !isEmpty(&head)) {
-            if (processes[id].executionTime > quantums[processes[id].type] && (processes[id].type < 2 || exitInstruction)) {
+            currentProcessId = head->processID;
+            if ((processes[id].executionTime >= quantums[processes[id].type] && processes[id].type < 2) || exitInstruction) {
+                
+                processes[id].quantumCount++;
+                processes[id].executionTime = 0;
+                
+                // type conversion
+                if (processes[id].quantumCount >= typeConversions[processes[id].type] && processes[id].type != 2) {
+                    processes[id].type++;
+                    processes[id].quantumCount = 0;
+                }
+                
                 isTimeQuantumExceeded = true;
                 Node *oldHead = pop(&head);
                 int poppedId = oldHead->processID;
+
                 if (!exitInstruction) { 
                     processes[poppedId].arrivalTime = time;
                     processes[poppedId].isPushed = false;
@@ -84,12 +96,14 @@ int main() {
                     processes[poppedId].arrivalTime = -1;
                     processes[poppedId].exitTime = time;
                 }
+
                 if (exitedProcesses >= processNumber)
                     break;
-                if (head->processID != poppedId && !isEmpty(&head)) {
-                    time += 10;  // context switch
-                    processes[oldHeadId].executionTime = 0;
-                }
+                
+                // if (!isEmpty(&head) && head->processID != poppedId) 
+                //     isContexSwitched = true;
+                //     processes[poppedId].executionTime = 0;
+                // }
                 exitInstruction = false;
             }
         }
@@ -97,23 +111,28 @@ int main() {
         if (!isEmpty(&head)) {
             oldHeadId = head->processID;
         }
-        
+        // printf("before ");
+        // printQueue(head);
         addToQueue(time,&head); // add processes to ready queue if their time has come
+        
+        if (!isEmpty(&head) && head->processID != currentProcessId) {
+            time += 10;
+        }
         
         if (time == 0) time += 10;
         
         if (isEmpty(&head)) {  // check if cpu is idle
             int addition = findClosestArrivalTime(time);
             if (addition != __INT_MAX__)
-                time += addition;
+                {time += addition;
+                continue;}
         }
-        if (head->processID != oldHeadId && time > 10) {
-            time += 10;  // context switch
-            processes[oldHeadId].executionTime = 0;
-        }
-
-        if(!isEmpty(&head))
-            printf("%d P%d instr : %d type : %d \n",time, head->processID + 1,processes[head->processID].lastExecutedLine, processes[head->processID].type);
+        
+        // if (head->processID != oldHeadId && time > 10 && !isContexSwitched) {
+        //     time += 10;  // context switch
+        //     processes[oldHeadId].executionTime = 0;
+        //     isContexSwitched = false;
+        // }
         
         id = head->processID;
         instructionLine = processes[id].lastExecutedLine;
@@ -122,13 +141,11 @@ int main() {
         processes[id].executionTime += operationTime;
         processes[id].totalExecutionTime += operationTime;
         processes[id].lastExecutedLine++;
-        processes[id].quantumCount++;
+
+        if(!isEmpty(&head))
+            printf("%d P%d instr%d %d \n",time, head->processID + 1,instructionId, processes[head->processID].type);
         
-        // type conversion
-        if (processes[id].quantumCount > typeConversions[processes[id].type] && processes[id].type != 2) {
-            processes[id].type++;
-        }
-        
+        printQueue(head);
         time += operationTime;  // advance time
         
         if (instructionId == 21)
@@ -149,7 +166,7 @@ void printQueue(Node* head) {
     printf("Queue: ");
     Node* current = head;
     while (current != NULL) {
-        printf("%d ", current->processID);
+        printf("P%d %d ", current->processID + 1,processes[current->processID].arrivalTime);
         current = current->next;
     }
     printf("\n");
@@ -202,7 +219,7 @@ int compareTo(Node* old, Node* new) {
         return -1;
 
     else if ((newProcess.type != 2 && oldProcess.type != 2) || (newProcess.type == 2 && oldProcess.type == 2)) {
-        int priorityDifference = newProcess.priority - oldProcess.priority;
+        int priorityDifference = oldProcess.priority - newProcess.priority;
         if (priorityDifference != 0)
             return priorityDifference;
 
@@ -217,13 +234,6 @@ int compareTo(Node* old, Node* new) {
 
 int isEmpty(Node** head) {
     return (*head) == NULL; 
-}
-
-void printIntArray(int arr[], int size) {
-    for (int i = 0; i < size; i++) {
-        printf("%d ", arr[i]);
-    }
-    printf("\n");
 }
 
 void readInstructions(char *filename) {
@@ -330,7 +340,7 @@ int findClosestArrivalTime(int time) {
     {
         int current = processes[activeProcesses[i]].arrivalTime;
         if (time < current && current < result)
-            result = current;
+            result = current - time;
     }
     return result;
 }
