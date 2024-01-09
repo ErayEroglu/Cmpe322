@@ -30,7 +30,7 @@ void readDefinitionFile(char *filename);
 int peek(Node* head);
 Node* createNode(int id, int priority);
 Node* pop(Node** head);
-Node* push(Node **head,int id, int priority);
+Node* push(Node **head,int id, int priority, int time);
 int isEmpty(Node** head);
 int compareTo(Node* old, Node* new);
 void cleanup();
@@ -65,7 +65,7 @@ int main() {
 
     readInstructions("instructions.txt");
     readProcessFiles();
-    char* input = "inputs/def11.txt";
+    char* input = "inputs/def1.txt";
     readDefinitionFile(input);
 
     while (1)
@@ -90,7 +90,7 @@ int main() {
                 if (!exitInstruction) { 
                     processes[poppedId].arrivalTime = time;
                     processes[poppedId].isPushed = false;
-                    push(&head,poppedId,processes[poppedId].priority);
+                    push(&head,poppedId,processes[poppedId].priority,time);
                 } else {
                     exitedProcesses++;
                     processes[poppedId].arrivalTime = -1;
@@ -186,7 +186,7 @@ Node* pop(Node** head) {
     return temp;
 }
 
-Node* push(Node **head,int id, int priority) {
+Node* push(Node **head,int id, int priority, int time) {
     Node* temp = createNode(id,priority);
     if (isEmpty(head)) {
         (*head) = temp;
@@ -195,6 +195,8 @@ Node* push(Node **head,int id, int priority) {
     }
     Node* start = (*head);
     if (compareTo(start,temp) < 0) {
+        int id  = (*head)->processID;
+        processes[id].arrivalTime = time;
         temp->next = *head;
         (*head) = temp;
     } else {
@@ -329,7 +331,7 @@ void addToQueue(int time,Node** head) {
     {
         int index = activeProcesses[i];
         if (time >= processes[index].arrivalTime  && processes[index].arrivalTime >= 0 && !processes[index].isPushed) {
-            push(head,index,processes[index].priority);
+            push(head,index,processes[index].priority,time);
         }
     }
 }
