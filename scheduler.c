@@ -38,6 +38,8 @@ void addToQueue(int time,Node** head);
 int findClosestArrivalTime(int time);
 float* calculateTimes();
 void printQueue(Node* head);
+int removeNextToHead(Node** head);
+void reorder(Node** head,int time);
 
 // global variables
 int const INSTRUCTION_NUMBER = 21;
@@ -75,23 +77,28 @@ int main() {
                 
                 processes[id].quantumCount++;
                 processes[id].executionTime = 0;
-                
+                processes[id].arrivalTime = time;
                 // type conversion
                 if (processes[id].quantumCount >= typeConversions[processes[id].type] && processes[id].type != 2) {
                     processes[id].type++;
                     processes[id].quantumCount = 0;
                 }
                 
-                isTimeQuantumExceeded = true;
-                Node *oldHead = pop(&head);
-                int poppedId = oldHead->processID;
+                // isTimeQuantumExceeded = true;
+                // Node *oldHead = pop(&head);
+                // int poppedId = oldHead->processID;
 
                 if (!exitInstruction) { 
-                    processes[poppedId].arrivalTime = time;
-                    processes[poppedId].isPushed = false;
-                    push(&head,poppedId,processes[poppedId].priority,time);
+                    reorder(&head,time);
+                    // processes[poppedId].arrivalTime = time;
+                    // processes[poppedId].isPushed = false;
+                    // push(&head,poppedId,processes[poppedId].priority,time);
+                    
                 } else {
                     exitedProcesses++;
+                    isTimeQuantumExceeded = true;
+                    Node *oldHead = pop(&head);
+                    int poppedId = oldHead->processID;
                     processes[poppedId].arrivalTime = -1;
                     processes[poppedId].exitTime = time;
                 }
@@ -108,8 +115,14 @@ int main() {
 
         addToQueue(time,&head); // add processes to ready queue if their time has come
         
+
         if (!isEmpty(&head) && head->processID != currentProcessId) {
             time += 10;
+            // if(head->next != NULL){
+            //     int temp = removeNextToHead(&head);
+            //     push(&head,temp,processes[temp].priority,time);            
+            // }
+            //reorder(&head,time);
         }
         
         if (time == 0) time += 10;
@@ -133,7 +146,7 @@ int main() {
         if(!isEmpty(&head))
             printf("%d P%d instr%d %d \n",time, head->processID + 1,instructionId, processes[head->processID].type);
         
-        printQueue(head);
+        //printQueue(head);
         time += operationTime;  // advance time
         
         if (instructionId == 21)
@@ -154,7 +167,7 @@ void printQueue(Node* head) {
     printf("Queue: ");
     Node* current = head;
     while (current != NULL) {
-        printf("P%d ", current->processID + 1);
+        printf("P%d : %d ", current->processID + 1,processes[current->processID].arrivalTime);
         current = current->next;
     }
     printf("\n");
@@ -174,6 +187,33 @@ Node* pop(Node** head) {
     return temp;
 }
 
+int removeNextToHead(Node** head) {
+    Node* temp = (*head)->next;
+    (*head)->next = temp->next;
+    int id = temp->processID;
+    free(temp);
+    return id;
+}
+
+void reorder(Node** head,int time) {
+    if (isEmpty(head) || (*head)->next == NULL) {
+        // List is empty or has only one element, no need to reorder
+        return;
+    }
+    //printQueue(*head);
+    Node* sortedList = NULL;
+    Node* current = (*head);
+
+    while (true) {
+        sortedList = push(&sortedList, current->processID, current->priority,time);
+        //printf("reordering ... P%d\n",current->processID + 1);
+        if(current->next == NULL)
+            break;
+        current = current->next;
+    }
+    *head = sortedList;
+}
+
 Node* push(Node **head,int id, int priority, int time) {
     Node* temp = createNode(id,priority);
     if (isEmpty(head)) {
@@ -183,8 +223,8 @@ Node* push(Node **head,int id, int priority, int time) {
     }
     Node* start = (*head);
     if (compareTo(start,temp) < 0) {
-        int id  = (*head)->processID;
-        processes[id].arrivalTime = time;
+        int oldId  = (*head)->processID;
+        processes[oldId].arrivalTime = time;
         temp->next = *head;
         (*head) = temp;
     } else {
