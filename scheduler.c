@@ -117,7 +117,8 @@ int main() {
         if (isEmpty(&head)) {  // check if cpu is idle
             int addition = findClosestArrivalTime(time);
             if (addition != __INT_MAX__)
-                {time += addition;
+                {
+                    time += addition;
                 continue;}
         }
         
@@ -129,10 +130,10 @@ int main() {
         processes[id].totalExecutionTime += operationTime;
         processes[id].lastExecutedLine++;
 
-        // if(!isEmpty(&head))
-        //     printf("%d P%d instr%d %d \n",time, head->processID + 1,instructionId, processes[head->processID].type);
+        if(!isEmpty(&head))
+            printf("%d P%d instr%d %d \n",time, head->processID + 1,instructionId, processes[head->processID].type);
         
-        //printQueue(head);
+        printQueue(head);
         time += operationTime;  // advance time
         
         if (instructionId == 21)
@@ -140,10 +141,8 @@ int main() {
     }
 
     float* result = calculateTimes();
-    // printf("%.1f\n",result[1]);
-    // printf("%.1f \n",result[0]);
-    printf("%f\n",result[1]);
-    printf("%f \n",result[0]);
+    printf(result[1] == (int)result[1] ? "%.0f\n" : "%.1f\n", result[1]);
+    printf(result[0] == (int)result[0] ? "%.0f\n" : "%.1f\n", result[0]);
     return 0;
 }
 
@@ -155,7 +154,7 @@ void printQueue(Node* head) {
     printf("Queue: ");
     Node* current = head;
     while (current != NULL) {
-        printf("P%d %d ", current->processID + 1,processes[current->processID].arrivalTime);
+        printf("P%d ", current->processID + 1);
         current = current->next;
     }
     printf("\n");
@@ -327,13 +326,14 @@ void addToQueue(int time,Node** head) {
 
 int findClosestArrivalTime(int time) {
     int result = __INT_MAX__;
+    int current = 0;
     for (int i = 0; i < processNumber; i++)
     {
-        int current = processes[activeProcesses[i]].arrivalTime;
+        current = processes[activeProcesses[i]].admissionTime;
         if (time < current && current < result)
-            result = current - time;
+            result = current;
     }
-    return result;
+    return result - time;
 }
 
 float* calculateTimes() {
