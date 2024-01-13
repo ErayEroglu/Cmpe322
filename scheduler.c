@@ -88,7 +88,6 @@ int main() {
                 // isTimeQuantumExceeded = true;
                 // Node *oldHead = pop(&head);
                 // int poppedId = oldHead->processID;
-                printf("P%d : %d \n",id + 1,processes[id].quantumCount);
                 if (!exitInstruction) { 
                     reorder(&head,time,id);
                     // processes[poppedId].arrivalTime = time;
@@ -111,7 +110,7 @@ int main() {
         }
         
         addToQueue(time,&head,id); // add processes to ready queue if their time has come
-        
+
         if (!isEmpty(&head) && head->processID != currentProcessId) {  // context switch
             time += 10;
             // if(head->next != NULL){
@@ -140,10 +139,10 @@ int main() {
         processes[id].totalExecutionTime += operationTime;
         processes[id].lastExecutedLine++;
 
-        if(!isEmpty(&head))
-            printf("%d P%d instr%d %d \n",time, head->processID + 1,instructionId, processes[head->processID].type);
+        // if(!isEmpty(&head))
+        //     printf("%d P%d instr%d %d \n",time, head->processID + 1,instructionId, processes[head->processID].type);
         
-        printQueue(head);
+        // printQueue(head);
         time += operationTime;  // advance time
         
         if (instructionId == 21)
@@ -164,7 +163,7 @@ void printQueue(Node* head) {
     printf("Queue: ");
     Node* current = head;
     while (current != NULL) {
-        printf("P%d %d ", current->processID + 1, processes[current->processID].type);
+        printf("P%d %d ", current->processID + 1, processes[current->processID].arrivalTime);
         current = current->next;
     }
     printf("\n");
@@ -203,7 +202,6 @@ void reorder(Node** head,int time,int id) {
 
     while (true) {
         sortedList = push(&sortedList, current->processID, current->priority,time,id);
-        //printf("reordering ... P%d\n",current->processID + 1);
         if(current->next == NULL)
             break;
         current = current->next;
@@ -220,18 +218,20 @@ Node* push(Node **head,int id, int priority, int time, int executedId) {
     }
     Node* start = (*head);
     if (compareTo(start,temp,executedId) < 0) {
-        int oldId  = (*head)->processID;
-        processes[oldId].arrivalTime = time;
-        processes[oldId].quantumCount++;
-        processes[oldId].executionTime = 0;
+        // int oldId  = (*head)->processID;
+        // processes[oldId].arrivalTime = time;
+        // processes[oldId].quantumCount++;
+        // processes[oldId].executionTime = 0;
 
-        if (processes[oldId].quantumCount >= typeConversions[processes[oldId].type] && processes[oldId].type != 2) {
-            processes[oldId].type++;
-            processes[oldId].quantumCount = 0;
-        }
+        // if (processes[oldId].quantumCount >= typeConversions[processes[oldId].type] && processes[oldId].type != 2) {
+        //     processes[oldId].type++;
+        //     processes[oldId].quantumCount = 0;
+        // }
 
         temp->next = *head;
         (*head) = temp;
+
+        //reorder(head,time,executedId);
     } else {
         while (start->next != NULL && compareTo(start->next,temp,executedId) > 0) {
             start = start->next;
@@ -362,12 +362,25 @@ void cleanActiveProcesses() {
 }
 
 void addToQueue(int time,Node** head, int id) {
+    int oldId = -1;
+    if (!isEmpty(head)) {oldId = (*head)->processID;}
+
     for (int i = 0; i < processNumber; i++)
     {
         int index = activeProcesses[i];
         if (time >= processes[index].arrivalTime  && processes[index].arrivalTime >= 0 && !processes[index].isPushed) {
             push(head,index,processes[index].priority,time,id);
         }
+    }
+    if (oldId != -1 && oldId != (*head)->processID && id == oldId) {
+        processes[oldId].arrivalTime = time;
+        processes[oldId].quantumCount++;
+        processes[oldId].executionTime = 0;
+        if (processes[oldId].quantumCount >= typeConversions[processes[oldId].type] && processes[oldId].type != 2) {
+            processes[oldId].type++;
+            processes[oldId].quantumCount = 0;
+        }
+        reorder(head,time,id);
     }
 }
 
