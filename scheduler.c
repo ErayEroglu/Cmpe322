@@ -30,16 +30,16 @@ void readDefinitionFile(char *filename);
 int peek(Node* head);
 Node* createNode(int id, int priority);
 Node* pop(Node** head);
-Node* push(Node **head,int id, int priority, int time);
+Node* push(Node **head,int id, int priority, int time,int executedId);
 int isEmpty(Node** head);
-int compareTo(Node* old, Node* new);
+int compareTo(Node* old, Node* new,int id);
 void cleanup();
-void addToQueue(int time,Node** head);
+void addToQueue(int time,Node** head,int id);
 int findClosestArrivalTime(int time);
 float* calculateTimes();
 void printQueue(Node* head);
 int removeNextToHead(Node** head);
-void reorder(Node** head,int time);
+void reorder(Node** head,int time,int id);
 
 // global variables
 int const INSTRUCTION_NUMBER = 21;
@@ -53,7 +53,7 @@ int processNumber = 0;
 
 int main() {
     int time = 0;
-    int id;
+    int id = -1;
     int operationTime;
     int instructionLine;
     int instructionId;
@@ -78,6 +78,7 @@ int main() {
                 processes[id].quantumCount++;
                 processes[id].executionTime = 0;
                 processes[id].arrivalTime = time;
+
                 // type conversion
                 if (processes[id].quantumCount >= typeConversions[processes[id].type] && processes[id].type != 2) {
                     processes[id].type++;
@@ -87,20 +88,20 @@ int main() {
                 // isTimeQuantumExceeded = true;
                 // Node *oldHead = pop(&head);
                 // int poppedId = oldHead->processID;
-
+                printf("P%d : %d \n",id + 1,processes[id].quantumCount);
                 if (!exitInstruction) { 
-                    reorder(&head,time);
+                    reorder(&head,time,id);
                     // processes[poppedId].arrivalTime = time;
                     // processes[poppedId].isPushed = false;
                     // push(&head,poppedId,processes[poppedId].priority,time);
                     
                 } else {
                     exitedProcesses++;
-                    isTimeQuantumExceeded = true;
                     Node *oldHead = pop(&head);
                     int poppedId = oldHead->processID;
                     processes[poppedId].arrivalTime = -1;
                     processes[poppedId].exitTime = time;
+                    id = -1;
                 }
 
                 if (exitedProcesses >= processNumber)
@@ -109,14 +110,9 @@ int main() {
             }
         }
         
-        if (!isEmpty(&head)) {
-            oldHeadId = head->processID;
-        }
-
-        addToQueue(time,&head); // add processes to ready queue if their time has come
+        addToQueue(time,&head,id); // add processes to ready queue if their time has come
         
-
-        if (!isEmpty(&head) && head->processID != currentProcessId) {
+        if (!isEmpty(&head) && head->processID != currentProcessId) {  // context switch
             time += 10;
             // if(head->next != NULL){
             //     int temp = removeNextToHead(&head);
@@ -132,6 +128,7 @@ int main() {
             if (addition != __INT_MAX__)
                 {
                     time += addition;
+                    id = -1;
                 continue;}
         }
         
@@ -146,7 +143,7 @@ int main() {
         if(!isEmpty(&head))
             printf("%d P%d instr%d %d \n",time, head->processID + 1,instructionId, processes[head->processID].type);
         
-        //printQueue(head);
+        printQueue(head);
         time += operationTime;  // advance time
         
         if (instructionId == 21)
@@ -167,7 +164,7 @@ void printQueue(Node* head) {
     printf("Queue: ");
     Node* current = head;
     while (current != NULL) {
-        printf("P%d : %d ", current->processID + 1,processes[current->processID].arrivalTime);
+        printf("P%d %d ", current->processID + 1, processes[current->processID].type);
         current = current->next;
     }
     printf("\n");
@@ -195,7 +192,7 @@ int removeNextToHead(Node** head) {
     return id;
 }
 
-void reorder(Node** head,int time) {
+void reorder(Node** head,int time,int id) {
     if (isEmpty(head) || (*head)->next == NULL) {
         // List is empty or has only one element, no need to reorder
         return;
@@ -205,7 +202,7 @@ void reorder(Node** head,int time) {
     Node* current = (*head);
 
     while (true) {
-        sortedList = push(&sortedList, current->processID, current->priority,time);
+        sortedList = push(&sortedList, current->processID, current->priority,time,id);
         //printf("reordering ... P%d\n",current->processID + 1);
         if(current->next == NULL)
             break;
@@ -214,7 +211,7 @@ void reorder(Node** head,int time) {
     *head = sortedList;
 }
 
-Node* push(Node **head,int id, int priority, int time) {
+Node* push(Node **head,int id, int priority, int time, int executedId) {
     Node* temp = createNode(id,priority);
     if (isEmpty(head)) {
         (*head) = temp;
@@ -222,13 +219,21 @@ Node* push(Node **head,int id, int priority, int time) {
         return temp;
     }
     Node* start = (*head);
-    if (compareTo(start,temp) < 0) {
+    if (compareTo(start,temp,executedId) < 0) {
         int oldId  = (*head)->processID;
         processes[oldId].arrivalTime = time;
+        processes[oldId].quantumCount++;
+        processes[oldId].executionTime = 0;
+
+        if (processes[oldId].quantumCount >= typeConversions[processes[oldId].type] && processes[oldId].type != 2) {
+            processes[oldId].type++;
+            processes[oldId].quantumCount = 0;
+        }
+
         temp->next = *head;
         (*head) = temp;
     } else {
-        while (start->next != NULL && compareTo(start->next,temp) > 0) {
+        while (start->next != NULL && compareTo(start->next,temp,executedId) > 0) {
             start = start->next;
         }
         temp->next = start->next;
@@ -238,28 +243,30 @@ Node* push(Node **head,int id, int priority, int time) {
     return *head;
 }
 
-int compareTo(Node* old, Node* new) {
+int compareTo(Node* old, Node* new, int id) {
     Process oldProcess = processes[old->processID];
     Process newProcess = processes[new->processID];
-
-    if (oldProcess.type == 2)
+    
+    if (oldProcess.type == 2 && (id == old->processID || newProcess.type != 2))
         return 1;
 
-    if (newProcess.type == 2)
+    if (newProcess.type == 2 && oldProcess.type != 2)
         return -1;
 
-    else if ((newProcess.type != 2 && oldProcess.type != 2) || (newProcess.type == 2 && oldProcess.type == 2)) {
-        int priorityDifference = oldProcess.priority - newProcess.priority;
-        if (priorityDifference != 0)
-            return priorityDifference;
+    int priorityDifference = oldProcess.priority - newProcess.priority;
+    if (priorityDifference != 0)
+        return priorityDifference;
 
-        int arrivalTimeDifference = newProcess.arrivalTime - oldProcess.arrivalTime;
-        if (arrivalTimeDifference != 0)
-            return arrivalTimeDifference;
+    int arrivalTimeDifference = newProcess.arrivalTime - oldProcess.arrivalTime;
+    if (arrivalTimeDifference != 0)
+        return arrivalTimeDifference;
 
-        return new->processID - old->processID;
-    } else
-        return 1;
+    char oldIDStr[4];  // Adjust the size based on your process ID length
+    char newIDStr[4];
+    sprintf(oldIDStr, "%d", old->processID + 1);
+    sprintf(newIDStr, "%d", new->processID + 1);
+
+    return strcmp(newIDStr,oldIDStr);
 } 
 
 int isEmpty(Node** head) {
@@ -354,12 +361,12 @@ void cleanActiveProcesses() {
     }
 }
 
-void addToQueue(int time,Node** head) {
+void addToQueue(int time,Node** head, int id) {
     for (int i = 0; i < processNumber; i++)
     {
         int index = activeProcesses[i];
         if (time >= processes[index].arrivalTime  && processes[index].arrivalTime >= 0 && !processes[index].isPushed) {
-            push(head,index,processes[index].priority,time);
+            push(head,index,processes[index].priority,time,id);
         }
     }
 }
