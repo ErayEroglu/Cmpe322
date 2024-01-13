@@ -34,7 +34,7 @@ Node* push(Node **head,int id, int priority, int time,int executedId);
 int isEmpty(Node** head);
 int compareTo(Node* old, Node* new,int id);
 void cleanup();
-void addToQueue(int time,Node** head,int id);
+void addToQueue(int time,Node** head,int id,bool flag);
 int findClosestArrivalTime(int time);
 float* calculateTimes();
 void printQueue(Node* head);
@@ -51,6 +51,7 @@ Process processes[10];
 int* activeProcesses;
 int processNumber = 0;
 
+
 int main() {
     int time = 0;
     int id = -1;
@@ -59,25 +60,26 @@ int main() {
     int instructionId;
     int oldHeadId;
     int exitedProcesses = 0;
-    int currentProcessId;
-    bool isTimeQuantumExceeded;
+    int currentProcessId = -1;
     bool exitInstruction = false;
-    bool isContexSwitched = false;
     Node* head = NULL;
+    bool isQuantumFinished = false;
 
     readInstructions("instructions.txt");
     readProcessFiles();
     char* input = "definition.txt";
     readDefinitionFile(input);
+
     while (1)
     {
         if (time > 0 && !isEmpty(&head)) {
             currentProcessId = head->processID;
             if ((processes[id].executionTime >= quantums[processes[id].type] && processes[id].type < 2) || exitInstruction) {
                 
+                isQuantumFinished = true;
+                processes[id].arrivalTime = time;
                 processes[id].quantumCount++;
                 processes[id].executionTime = 0;
-                processes[id].arrivalTime = time;
 
                 // type conversion
                 if (processes[id].quantumCount >= typeConversions[processes[id].type] && processes[id].type != 2) {
@@ -109,7 +111,7 @@ int main() {
             }
         }
         
-        addToQueue(time,&head,id); // add processes to ready queue if their time has come
+        addToQueue(time,&head,id,isQuantumFinished); // add processes to ready queue if their time has come
 
         if (!isEmpty(&head) && head->processID != currentProcessId) {  // context switch
             time += 10;
@@ -144,6 +146,7 @@ int main() {
         
         // printQueue(head);
         time += operationTime;  // advance time
+        isQuantumFinished = false;
         
         if (instructionId == 21)
             exitInstruction = true;
@@ -192,6 +195,7 @@ int removeNextToHead(Node** head) {
 }
 
 void reorder(Node** head,int time,int id) {
+    
     if (isEmpty(head) || (*head)->next == NULL) {
         // List is empty or has only one element, no need to reorder
         return;
@@ -199,7 +203,6 @@ void reorder(Node** head,int time,int id) {
     //printQueue(*head);
     Node* sortedList = NULL;
     Node* current = (*head);
-
     while (true) {
         sortedList = push(&sortedList, current->processID, current->priority,time,id);
         if(current->next == NULL)
@@ -227,7 +230,6 @@ Node* push(Node **head,int id, int priority, int time, int executedId) {
         //     processes[oldId].type++;
         //     processes[oldId].quantumCount = 0;
         // }
-
         temp->next = *head;
         (*head) = temp;
 
@@ -252,7 +254,7 @@ int compareTo(Node* old, Node* new, int id) {
 
     if (newProcess.type == 2 && oldProcess.type != 2)
         return -1;
-
+    
     int priorityDifference = oldProcess.priority - newProcess.priority;
     if (priorityDifference != 0)
         return priorityDifference;
@@ -361,9 +363,9 @@ void cleanActiveProcesses() {
     }
 }
 
-void addToQueue(int time,Node** head, int id) {
-    int oldId = -1;
-    if (!isEmpty(head)) {oldId = (*head)->processID;}
+void addToQueue(int time,Node** head, int id, bool flag) {
+    // int oldId = -1;
+    // if (!isEmpty(head)) {oldId = (*head)->processID;}
 
     for (int i = 0; i < processNumber; i++)
     {
@@ -372,13 +374,13 @@ void addToQueue(int time,Node** head, int id) {
             push(head,index,processes[index].priority,time,id);
         }
     }
-    if (oldId != -1 && oldId != (*head)->processID && id == oldId) {
-        processes[oldId].arrivalTime = time;
-        processes[oldId].quantumCount++;
-        processes[oldId].executionTime = 0;
-        if (processes[oldId].quantumCount >= typeConversions[processes[oldId].type] && processes[oldId].type != 2) {
-            processes[oldId].type++;
-            processes[oldId].quantumCount = 0;
+    if (id != -1 && id != (*head)->processID && !flag) {
+        processes[id].arrivalTime = time;
+        processes[id].quantumCount++;
+        processes[id].executionTime = 0;
+        if (processes[id].quantumCount >= typeConversions[processes[id].type] && processes[id].type != 2) {
+            processes[id].type++;
+            processes[id].quantumCount = 0;
         }
         reorder(head,time,id);
     }
