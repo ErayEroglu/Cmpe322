@@ -1,6 +1,0 @@
-instr8
-instr1
-instr10
-instr11
-instr2
-exit
