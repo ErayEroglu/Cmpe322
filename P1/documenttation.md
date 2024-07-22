@@ -3,13 +3,13 @@ This program serves as a fundamental custom shell, introducing distinct function
 
 # IMPLEMENTATION
 
-The shell program operates in a fork-exec manner. It searches for executables based on the PATH variable order. Error handling is emphasized, and the shell must not terminate with an error, while providing clear error messages. In cases where a command is not found in the PATH variables or among built-in commands, the shell prints a console message: “Command is not found”.
+The shell program operates in a fork-exec manner. It searches for executables based on the PATH variable order. Error handling is emphasized, and the shell must not terminate with an error while providing clear error messages. In cases where a command is not found in the PATH variables or among built-in commands, the shell prints a console message: “Command is not found”.
 
-The shell has various features: It supports background processing (&), redirection operators (">" and ">>"), alias creation, and a unique re-redirection operator (">>>") which reverses the output of a program and writes it to a file. It also terminates with the “exit” command. 
+The shell has various features: It supports background processing (&), redirection operators (">" and ">>"), alias creation, and a unique re-redirection operator (">>>") that reverses the output of a program and writes it to a file. It also terminates with the “exit” command. 
 
 The shell also has another built-in command, “bello,” which displays eight information items about the user, such as username, hostname, last executed command, TTY, current shell name, home location, current time and date, and the number of currently executed processes. It is a very useful method to get information about the system.
 
-The program has specific restrictions, limiting the maximum input length to 128 characters.  While longer commands are technically feasible, it is considered unusual. Consequently, as a design choice, 128 characters is decided as the upper limit. 
+The program has specific restrictions, limiting the maximum input length to 128 characters.  While longer commands are technically feasible, they are considered unusual. Consequently, as a design choice, 128 characters have been decided as the upper limit. 
 
 Memory allocation is mostly dynamic; it is preferred because it provides a more flexible approach to handling different types of commands and their arguments. These allocations are freed accordingly after their utilization, which ensures memory efficiency.
 
