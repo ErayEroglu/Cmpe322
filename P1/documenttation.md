@@ -9,7 +9,7 @@ The shell has various features: It supports background processing (&), redirecti
 
 The shell also has another built-in command, “bello,” which displays eight information items about the user, such as username, hostname, last executed command, TTY, current shell name, home location, current time and date, and the number of currently executed processes. It is a very useful method to get information about the system.
 
-The program has specific restrictions, limiting the maximum input length to 128 characters.  While longer commands are technically feasible, it is considered unusual. Consequently, as a design choice, 128 characters is decided as the upper limit. 
+The program has specific restrictions, limiting the maximum input length to 128 characters. While longer commands are technically feasible, they are considered unusual. Consequently, as a design choice, 128 characters is decided as the upper limit. 
 
 Memory allocation is mostly dynamic; it is preferred because it provides a more flexible approach to handling different types of commands and their arguments. These allocations are freed accordingly after their utilization, which ensures memory efficiency.
 
