@@ -3,16 +3,16 @@ This program serves as a fundamental custom shell, introducing distinct function
 
 # IMPLEMENTATION
 
-The shell program operates in a fork-exec manner, searching for executables based on the PATH variable order. Error handling is emphasized, ensuring the shell does not terminate with an error while providing clear error messages. In cases where a command is not found in the PATH variables or among built-in commands, the shell prints a console message: âCommand is not foundâ.
+The shell program operates in a fork-exec manner. It searches for executables based on the PATH variable order. Error handling is emphasized, and the shell must not terminate with an error, while providing clear error messages. In cases where a command is not found in the PATH variables or among built-in commands, the shell prints a console message: âCommand is not foundâ.
 
 The shell has various features: it supports background processing (&), redirection operators (">" and ">>"), alias creation, and a unique re-redirection operator (">>>") that reverses the output of a program and writes it to a file. It also terminates with the âexitâ command. 
 
-The shell also has another built-in command, âbello,â which displays eight pieces of information about the user, such as username, hostname, last executed command, TTY, current shell name, home location, current time and date, and the number of currently executed processes. It is a very useful method to get information about the system.
+The shell also has another built-in command, âbello,â which displays eight information items about the user, such as username, hostname, last executed command, TTY, current shell name, home location, current time and date, and the number of currently executed processes. It is a very useful method to get information about the system.
 
-The program has specific restrictions, limiting the maximum input length to 128 characters. While longer commands are technically feasible, they are considered unusual. Consequently, as a design choice, 128 characters have been decided as the upper limit. 
+The program has specific restrictions, limiting the maximum input length to 128 characters. Although longer commands are technically feasible, they are considered unusual. Consequently, as a design choice, 128 characters have been decided as the upper limit. 
 
-Memory allocation is mostly dynamic; it is preferred because it offers a more flexible approach to handling different types of commands and their arguments. These allocations are freed accordingly after their utilization, which ensures memory efficiency.
+Memory allocation is mostly dynamic; it is preferred because it provides a more flexible approach to handling different types of commands and their arguments. These allocations are freed accordingly after their utilization, which ensures memory efficiency.
 
 # CONCLUSION
-In summary, the program mainly focuses on creating a customized shell with specific functionalities, offering a unique implementation for macOS or Ubuntu. It is not as sophisticated as bash or zsh; however, it provides great functionalities to the user and is very easy to use. 
+In summary, the program mainly focuses on creating a customized shell with specific functionalities, offering a unique implementation for Mac OS and Ubuntu. It is not as sophisticated as bash or zsh; however, it provides great functionalities to the user and is very easy to use. 
 
